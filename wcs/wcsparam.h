@@ -32,18 +32,76 @@ enum {	//< 多项式交叉系数类型
 };
 
 /*!
- * struct param_wcs 声明通用WCS参数
+ * struct param_distoration 声明畸变改正参数
  */
-struct param_wcs {
-	int distortion;		//< 畸变改正算法
-	int function;		//< 畸变改正函数基
+struct param_distoration {
+	int dist;			//< 畸变改正算法
+	int func;			//< 畸变改正函数基
 	int xorder, yorder;	//< 畸变改正函数基阶次
-	int xterm;			//< 交叉项类型. SIP默认为
+	int xterm;			//< 交叉项类型
+	int ncoef;			//< 畸变改正算法系数数量
+	double norm[4];		//< 图像坐标归一化范围.  0: xmin, 1: ymin; 2: xmax; 3: ymax
+	double *coef;		//< 畸变改正系数
+	double *x, *y;		//< 多项式各项变量存储区
+
+protected:
+	void release_memory(double **ptr) {
+		if ((*ptr)) {
+			delete[] (*ptr);
+			(*ptr) = NULL;
+		}
+	}
+
+	void release_all_memory() {
+		release_memory(&coef);
+		release_memory(&x);
+		release_memory(&y);
+	}
+
+	/*!
+	 * @brief 计算系数数量
+	 * @return
+	 * 系数数量
+	 */
+	int coef_count() {
+		return 0;
+	}
+
+public:
+	param_distoration() {
+		coef = x = y = NULL;
+		ncoef = 0;
+	}
+
+	virtual ~param_distoration() {
+		release_all_memory();
+	}
+	/*!
+	 * @brief 为畸变系数及多项式分配内存
+	 * @return
+	 * 内存分配结果
+	 * @note
+	 * 在设置成员变量dist, func, xorder, yorder, xterm后执行
+	 */
+	bool alloc_memory() {
+		int n = coef_count();
+		if (n != ncoef) {
+			ncoef = n;
+			release_all_memory();
+		}
+		return (coef != NULL && x != NULL && y != NULL);
+	}
+};
+
+/*!
+ * @struct wcs_tan 声明TAN投影WCS<->图像坐标转换关系
+ */
+struct wcs_tan {
 	int wimg, himg;		//< 图像尺寸
-	double xmin, ymin;	//< 归一化范围
-	double xmax, ymax;
 	double crpix[2];	//< 参考点对应的图像坐标
 	double crval[2];	//< 参考点对应的WCS坐标
-	double ctm[2][2];	//< 转换矩阵: xy=>中间坐标系
-	double ctmr[2][2];	//< 逆转换矩阵: 中间坐标系=>xy
+	double ctm[2][2];	//< 坐标转换矩阵: xy=>中间坐标系
+	double ctmr[2][2];	//< 坐标逆转换矩阵: 中间坐标系=>xy
+	bool valid[2];		//< 畸变修正模型有效性
+	param_distoration dist[2];	//< RA/DEC轴畸变改正模型
 };
